@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer Retention & Revenue Intelligence</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      color: #172033;
+      background: #f6f8fb;
+    }
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      color: #17324d;
+    }
+    p {
+      line-height: 1.55;
+    }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin: 28px 0;
+    }
+    .kpi {
+      background: #fff;
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .label {
+      font-size: 13px;
+      color: #5d6b82;
+    }
+    .value {
+      margin-top: 8px;
+      font-size: 24px;
+      font-weight: 700;
+      color: #17324d;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 18px;
+    }
+    .panel {
+      background: #fff;
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+      padding: 18px;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Customer Retention & Revenue Intelligence</h1>
+    <p>Portfolio dashboard summary built from the Olist ecommerce dataset. The full Tableau-ready datasets are available in <code>data/processed/</code>.</p>
+
+    <section class="kpis">
+      <div class="kpi"><div class="label">Total Revenue</div><div class="value">15.42M</div></div>
+      <div class="kpi"><div class="label">Delivered Orders</div><div class="value">96,478</div></div>
+      <div class="kpi"><div class="label">Unique Customers</div><div class="value">93,358</div></div>
+      <div class="kpi"><div class="label">Average Order Value</div><div class="value">159.85</div></div>
+      <div class="kpi"><div class="label">Repeat Purchase Rate</div><div class="value">3.00%</div></div>
+      <div class="kpi"><div class="label">Churn-Risk Customers</div><div class="value">59.05%</div></div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <img src="figures/top_categories.svg" alt="Top product categories by revenue">
+      </div>
+      <div class="panel">
+        <img src="figures/top_states.svg" alt="Top customer states by revenue">
+      </div>
+    </section>
+  </main>
+</body>
+</html>

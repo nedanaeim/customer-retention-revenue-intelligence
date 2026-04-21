@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="170" y="38" font-family="Arial" font-size="24" font-weight="700" fill="#17324d">Top Product Categories by Merchandise Revenue</text>
+<text x="158" y="88.8" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">health_beauty</text>
+<rect x="170" y="70.0" width="690.0" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="868.0" y="88.8" font-family="Arial" font-size="13" fill="#243447">1,233,132</text>
+<text x="158" y="127.8" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">watches_gifts</text>
+<rect x="170" y="109.0" width="652.5" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="830.5" y="127.8" font-family="Arial" font-size="13" fill="#243447">1,166,177</text>
+<text x="158" y="166.8" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">bed_bath_table</text>
+<rect x="170" y="148.0" width="572.7" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="750.7" y="166.8" font-family="Arial" font-size="13" fill="#243447">1,023,435</text>
+<text x="158" y="205.8" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">sports_leisure</text>
+<rect x="170" y="187.0" width="534.3" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="712.3" y="205.8" font-family="Arial" font-size="13" fill="#243447">954,853</text>
+<text x="158" y="244.8" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">computers_accessories</text>
+<rect x="170" y="226.0" width="497.3" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="675.3" y="244.8" font-family="Arial" font-size="13" fill="#243447">888,725</text>
+<text x="158" y="283.9" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">furniture_decor</text>
+<rect x="170" y="265.0" width="398.4" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="576.4" y="283.9" font-family="Arial" font-size="13" fill="#243447">711,928</text>
+<text x="158" y="322.9" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">housewares</text>
+<rect x="170" y="304.0" width="344.5" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="522.5" y="322.9" font-family="Arial" font-size="13" fill="#243447">615,629</text>
+<text x="158" y="361.9" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">cool_stuff</text>
+<rect x="170" y="343.0" width="341.4" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="519.4" y="361.9" font-family="Arial" font-size="13" fill="#243447">610,204</text>
+<text x="158" y="400.9" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">auto</text>
+<rect x="170" y="382.0" width="324.0" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="502.0" y="400.9" font-family="Arial" font-size="13" fill="#243447">578,967</text>
+<text x="158" y="439.9" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">toys</text>
+<rect x="170" y="421.0" width="263.7" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="441.7" y="439.9" font-family="Arial" font-size="13" fill="#243447">471,286</text>
+</svg>

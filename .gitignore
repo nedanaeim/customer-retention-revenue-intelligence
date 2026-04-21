@@ -1,0 +1,15 @@
+# Generated local database
+data/*.db
+data/*.sqlite
+
+# OS/editor files
+.DS_Store
+.vscode/
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Tableau local extracts/backups
+*.hyper
+*.twbr

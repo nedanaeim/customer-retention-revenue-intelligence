@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="170" y="38" font-family="Arial" font-size="24" font-weight="700" fill="#17324d">Top Customer States by Revenue</text>
+<text x="158" y="88.8" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">SP</text>
+<rect x="170" y="70.0" width="690.0" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="868.0" y="88.8" font-family="Arial" font-size="13" fill="#243447">5,770,266</text>
+<text x="158" y="127.8" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">RJ</text>
+<rect x="170" y="109.0" width="245.8" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="423.8" y="127.8" font-family="Arial" font-size="13" fill="#243447">2,055,690</text>
+<text x="158" y="166.8" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">MG</text>
+<rect x="170" y="148.0" width="217.5" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="395.5" y="166.8" font-family="Arial" font-size="13" fill="#243447">1,819,278</text>
+<text x="158" y="205.8" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">RS</text>
+<rect x="170" y="187.0" width="103.1" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="281.1" y="205.8" font-family="Arial" font-size="13" fill="#243447">861,802</text>
+<text x="158" y="244.8" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">PR</text>
+<rect x="170" y="226.0" width="93.5" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="271.5" y="244.8" font-family="Arial" font-size="13" fill="#243447">781,920</text>
+<text x="158" y="283.9" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">SC</text>
+<rect x="170" y="265.0" width="71.2" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="249.2" y="283.9" font-family="Arial" font-size="13" fill="#243447">595,208</text>
+<text x="158" y="322.9" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">BA</text>
+<rect x="170" y="304.0" width="70.7" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="248.7" y="322.9" font-family="Arial" font-size="13" fill="#243447">591,271</text>
+<text x="158" y="361.9" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">DF</text>
+<rect x="170" y="343.0" width="41.4" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="219.4" y="361.9" font-family="Arial" font-size="13" fill="#243447">346,146</text>
+<text x="158" y="400.9" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">GO</text>
+<rect x="170" y="382.0" width="40.0" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="218.0" y="400.9" font-family="Arial" font-size="13" fill="#243447">334,294</text>
+<text x="158" y="439.9" text-anchor="end" font-family="Arial" font-size="13" fill="#243447">ES</text>
+<rect x="170" y="421.0" width="38.0" height="29.0" rx="3" fill="#2f80ed"/>
+<text x="216.0" y="439.9" font-family="Arial" font-size="13" fill="#243447">317,683</text>
+</svg>
