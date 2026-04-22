@@ -81,6 +81,4 @@ The script creates a local SQLite database at `data/olist_retention.db` and expo
 4. Improve customer experience in lower-review markets and categories before scaling retention spend.
 5. Track repeat purchase rate, cohort retention, and customer lifetime value as monthly executive KPIs.
 
-## Portfolio Positioning
 
-This project demonstrates business problem framing, SQL data modelling, KPI design, customer segmentation, cohort retention analysis, and clear stakeholder communication. It is suitable for a data analyst portfolio, CV project section, and LinkedIn feature post.
