@@ -1,6 +1,17 @@
 # Customer Retention & Revenue Intelligence
 
-An end-to-end data analyst portfolio project using the Brazilian Olist ecommerce dataset. The project turns raw order, customer, product, payment, and review data into SQL models, dashboard-ready datasets, and business recommendations focused on revenue growth and customer retention.
+[![Live Dashboard](https://img.shields.io/badge/Live%20Dashboard-Open-7A4CB0?style=for-the-badge)](https://nedanaeim.github.io/customer-retention-revenue-intelligence/)
+[![Portfolio](https://img.shields.io/badge/GitHub%20Portfolio-nedanaeim-4B236B?style=for-the-badge&logo=github&logoColor=white)](https://github.com/nedanaeim)
+
+An end-to-end data analyst portfolio project using the Brazilian Olist ecommerce dataset. The project turns raw order, customer, product, payment, and review data into SQL models, dashboard-ready datasets, an interactive web dashboard, and business recommendations focused on revenue growth and customer retention.
+
+## Interactive Dashboard
+
+The project includes a purple-themed interactive dashboard with KPI cards, metric toggles, top category and state filters, cohort retention visuals, customer activity segments, and recommendation cards.
+
+- [Open the live dashboard](https://nedanaeim.github.io/customer-retention-revenue-intelligence/)
+- [View the local dashboard file](reports/dashboard.html)
+- [View the GitHub Pages source](docs/index.html)
 
 ## Business Problem
 
@@ -9,7 +20,9 @@ The business wants to understand why most customers do not return after their fi
 ## Tools Used
 
 - SQL / SQLite for data modelling and KPI queries
-- Python standard library for repeatable CSV ingestion and exports
+- Python standard library for repeatable CSV ingestion, exports, and dashboard generation
+- Chart.js for the interactive dashboard
+- GitHub Pages for publishing
 - Tableau-ready CSV outputs for dashboard building
 - GitHub documentation for portfolio presentation
 
@@ -41,7 +54,9 @@ The raw data is the Olist ecommerce dataset, stored in `archive 2/`. It includes
 ```text
 archive 2/                     Raw Olist CSV files
 data/processed/                Analysis-ready CSV outputs
+docs/index.html                Published GitHub Pages dashboard
 docs/                          Business context, data dictionary, and recommendations
+reports/dashboard.html         Local interactive dashboard copy
 reports/figures/               Lightweight SVG charts for GitHub preview
 scripts/build_analysis_outputs.py
 sql/                           SQL workflow from raw tables to dashboard outputs
@@ -56,7 +71,7 @@ Run the build script from the repository root:
 python3 scripts/build_analysis_outputs.py
 ```
 
-The script creates a local SQLite database at `data/olist_retention.db` and exports the portfolio datasets to `data/processed/`. The database is intentionally ignored by Git because it is generated and exceeds a practical GitHub file size.
+The script creates a local SQLite database at `data/olist_retention.db`, exports the portfolio datasets to `data/processed/`, refreshes `reports/dashboard.html`, and writes the publishable dashboard to `docs/index.html`. The database is intentionally ignored by Git because it is generated and exceeds a practical GitHub file size.
 
 ## Dashboard-Ready Outputs
 
@@ -80,5 +95,3 @@ The script creates a local SQLite database at `data/olist_retention.db` and expo
 3. Build targeted win-back campaigns for customers inactive for more than 180 days.
 4. Improve customer experience in lower-review markets and categories before scaling retention spend.
 5. Track repeat purchase rate, cohort retention, and customer lifetime value as monthly executive KPIs.
-
-

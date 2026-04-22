@@ -8,6 +8,7 @@ project can run on a clean machine without dependency installation.
 from __future__ import annotations
 
 import csv
+import json
 import sqlite3
 from pathlib import Path
 
@@ -17,6 +18,8 @@ RAW_DIR = ROOT / "archive 2"
 DB_PATH = ROOT / "data" / "olist_retention.db"
 PROCESSED_DIR = ROOT / "data" / "processed"
 FIGURES_DIR = ROOT / "reports" / "figures"
+PUBLIC_DIR = ROOT / "docs"
+REPORTS_DIR = ROOT / "reports"
 
 TABLES = {
     "olist_customers_dataset.csv": "raw_customers",
@@ -238,6 +241,12 @@ def export_query(conn: sqlite3.Connection, query: str, output_path: Path) -> Non
         writer.writerows(cursor.fetchall())
 
 
+def query_dicts(conn: sqlite3.Connection, query: str) -> list[dict[str, object]]:
+    cursor = conn.execute(query)
+    headers = [description[0] for description in cursor.description]
+    return [dict(zip(headers, row)) for row in cursor.fetchall()]
+
+
 def write_svg_bar_chart(rows: list[tuple[str, float]], title: str, output_path: Path) -> None:
     width, height = 900, 520
     margin_left, margin_right, margin_top, margin_bottom = 170, 40, 70, 70
@@ -259,6 +268,993 @@ def write_svg_bar_chart(rows: list[tuple[str, float]], title: str, output_path: 
         parts.append(f'<text x="{margin_left + bar_width + 8:.1f}" y="{y + bar_height * 0.65:.1f}" font-family="Arial" font-size="13" fill="#243447">{value:,.0f}</text>')
     parts.append("</svg>")
     output_path.write_text("\n".join(parts), encoding="utf-8")
+
+
+def write_interactive_dashboard(conn: sqlite3.Connection) -> None:
+    dashboard_data = {
+        "kpis": query_dicts(conn, "SELECT metric, value FROM (SELECT * FROM (SELECT 'Total revenue' AS metric, ROUND(SUM(payment_value), 2) AS value FROM fact_orders UNION ALL SELECT 'Delivered orders', COUNT(*) FROM fact_orders UNION ALL SELECT 'Unique customers', COUNT(DISTINCT customer_unique_id) FROM fact_orders UNION ALL SELECT 'Average order value', ROUND(AVG(payment_value), 2) FROM fact_orders UNION ALL SELECT 'Repeat purchase rate pct', ROUND(100.0 * SUM(CASE WHEN orders > 1 THEN 1 ELSE 0 END) / COUNT(*), 2) FROM customer_metrics UNION ALL SELECT 'Inactive or churn-risk customers pct', ROUND(100.0 * SUM(CASE WHEN activity_status = 'Inactive / churn risk' THEN 1 ELSE 0 END) / COUNT(*), 2) FROM customer_metrics))"),
+        "monthly": query_dicts(
+            conn,
+            """
+            SELECT
+                order_month,
+                orders,
+                customers,
+                revenue,
+                avg_order_value,
+                avg_review_score,
+                on_time_delivery_rate_pct
+            FROM (
+                SELECT
+                    order_month,
+                    COUNT(DISTINCT order_id) AS orders,
+                    COUNT(DISTINCT customer_unique_id) AS customers,
+                    ROUND(SUM(payment_value), 2) AS revenue,
+                    ROUND(AVG(payment_value), 2) AS avg_order_value,
+                    ROUND(AVG(review_score), 2) AS avg_review_score,
+                    ROUND(100.0 * SUM(delivered_on_time) / COUNT(*), 2) AS on_time_delivery_rate_pct
+                FROM fact_orders
+                GROUP BY order_month
+            )
+            ORDER BY order_month
+            """,
+        ),
+        "categories": query_dicts(
+            conn,
+            """
+            SELECT
+                product_category,
+                COUNT(DISTINCT order_id) AS orders,
+                COUNT(*) AS items_sold,
+                ROUND(SUM(price), 2) AS merchandise_revenue,
+                ROUND(AVG(price), 2) AS avg_item_price,
+                COUNT(DISTINCT customer_unique_id) AS customers
+            FROM fact_order_items_enriched
+            GROUP BY product_category
+            ORDER BY merchandise_revenue DESC
+            LIMIT 20
+            """,
+        ),
+        "states": query_dicts(
+            conn,
+            """
+            SELECT
+                customer_state,
+                COUNT(DISTINCT order_id) AS orders,
+                COUNT(DISTINCT customer_unique_id) AS customers,
+                ROUND(SUM(payment_value), 2) AS revenue,
+                ROUND(AVG(payment_value), 2) AS avg_order_value,
+                ROUND(AVG(review_score), 2) AS avg_review_score
+            FROM fact_orders
+            GROUP BY customer_state
+            ORDER BY revenue DESC
+            """,
+        ),
+        "activitySegments": query_dicts(
+            conn,
+            """
+            SELECT
+                activity_status,
+                COUNT(*) AS customers,
+                ROUND(SUM(customer_revenue), 2) AS revenue,
+                ROUND(AVG(avg_order_value), 2) AS avg_order_value
+            FROM customer_metrics
+            GROUP BY activity_status
+            ORDER BY customers DESC
+            """,
+        ),
+        "valueSegments": query_dicts(
+            conn,
+            """
+            SELECT
+                value_segment,
+                COUNT(*) AS customers,
+                ROUND(SUM(customer_revenue), 2) AS revenue,
+                ROUND(AVG(avg_order_value), 2) AS avg_order_value
+            FROM customer_metrics
+            GROUP BY value_segment
+            ORDER BY revenue DESC
+            """,
+        ),
+        "retention": query_dicts(
+            conn,
+            """
+            SELECT
+                months_since_first_purchase,
+                ROUND(AVG(retention_rate_pct), 2) AS avg_retention_rate_pct,
+                SUM(active_customers) AS active_customers,
+                SUM(cohort_customers) AS cohort_customers
+            FROM cohort_retention
+            GROUP BY months_since_first_purchase
+            ORDER BY months_since_first_purchase
+            """,
+        ),
+    }
+
+    html = DASHBOARD_TEMPLATE.replace(
+        "__DASHBOARD_DATA__",
+        json.dumps(dashboard_data, ensure_ascii=False),
+    )
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    PUBLIC_DIR.mkdir(parents=True, exist_ok=True)
+    (REPORTS_DIR / "dashboard.html").write_text(html, encoding="utf-8")
+    (PUBLIC_DIR / "index.html").write_text(html, encoding="utf-8")
+    (PUBLIC_DIR / ".nojekyll").write_text("", encoding="utf-8")
+
+
+DASHBOARD_TEMPLATE = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer Retention & Revenue Intelligence Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --ink: #191020;
+      --muted: #6b5c73;
+      --deep: #2d143f;
+      --purple: #6f35a5;
+      --violet: #9b59d0;
+      --lavender: #f5effb;
+      --line: #e7dff0;
+      --card: #ffffff;
+      --accent: #00a88f;
+      --gold: #c9891d;
+      --shadow: 0 18px 42px rgba(45, 20, 63, 0.14);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #fbf8ff 0%, #ffffff 34%, #f8f4fc 100%);
+    }
+
+    a { color: var(--purple); }
+
+    header {
+      background:
+        linear-gradient(135deg, #2d143f 0%, #5a267e 58%, #8a45bd 100%);
+      color: #fff;
+      padding: 44px 20px 36px;
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr);
+      gap: 28px;
+      align-items: end;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 850px;
+      font-size: clamp(34px, 6vw, 68px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 720px;
+      margin: 18px 0 0;
+      color: rgba(255, 255, 255, 0.86);
+      font-size: 18px;
+      line-height: 1.55;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .hero-actions a,
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: #fff;
+      color: var(--deep);
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .hero-actions a.secondary {
+      background: transparent;
+      color: #fff;
+    }
+
+    .summary-panel {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.12);
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    .summary-panel h2 {
+      margin: 0 0 12px;
+      font-size: 17px;
+      color: #fff;
+    }
+
+    .summary-panel ul {
+      margin: 0;
+      padding-left: 18px;
+      color: rgba(255, 255, 255, 0.86);
+      line-height: 1.55;
+    }
+
+    main {
+      padding: 26px 0 48px;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      margin: -1px auto 24px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 12px 26px rgba(45, 20, 63, 0.08);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      align-items: center;
+      backdrop-filter: blur(8px);
+    }
+
+    .metric-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button,
+    select {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--deep);
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      padding: 8px 12px;
+      font-weight: 800;
+    }
+
+    button.active {
+      border-color: var(--purple);
+      background: var(--purple);
+      color: #fff;
+    }
+
+    select {
+      padding: 8px 34px 8px 10px;
+      font-weight: 700;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .kpi,
+    .card,
+    .insight {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .kpi {
+      padding: 16px;
+      min-height: 122px;
+    }
+
+    .kpi span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .kpi strong {
+      display: block;
+      margin-top: 10px;
+      color: var(--deep);
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .kpi small {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+    }
+
+    .card {
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .span-8 { grid-column: span 8; }
+    .span-7 { grid-column: span 7; }
+    .span-6 { grid-column: span 6; }
+    .span-5 { grid-column: span 5; }
+    .span-4 { grid-column: span 4; }
+    .span-12 { grid-column: span 12; }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: start;
+      margin-bottom: 14px;
+    }
+
+    h2 {
+      margin: 0;
+      color: var(--deep);
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    .card-head p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .chart-box {
+      position: relative;
+      height: 360px;
+    }
+
+    .chart-box.short {
+      height: 305px;
+    }
+
+    .insight {
+      padding: 18px;
+      background: #2d143f;
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .insight h2 { color: #fff; }
+
+    .insight p {
+      color: rgba(255, 255, 255, 0.84);
+      line-height: 1.55;
+    }
+
+    .lens-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .lens-tabs button {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.24);
+    }
+
+    .lens-tabs button.active {
+      background: #fff;
+      color: var(--deep);
+    }
+
+    .recommendations {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .recommendation {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .recommendation strong {
+      display: block;
+      color: var(--deep);
+      margin-bottom: 6px;
+    }
+
+    .recommendation p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .data-table th,
+    .data-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+    }
+
+    .data-table th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .data-table td:last-child,
+    .data-table th:last-child {
+      text-align: right;
+    }
+
+    footer {
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .span-8,
+      .span-7,
+      .span-6,
+      .span-5,
+      .span-4 {
+        grid-column: span 12;
+      }
+
+      .recommendations {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      header {
+        padding-top: 30px;
+      }
+
+      .wrap {
+        width: min(100% - 22px, 1180px);
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-box,
+      .chart-box.short {
+        height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap hero">
+      <section>
+        <div class="eyebrow">Interactive portfolio dashboard</div>
+        <h1>Customer Retention & Revenue Intelligence</h1>
+        <p>Explore revenue, retention, customer activity, product categories, and regional performance from the Brazilian Olist ecommerce dataset.</p>
+        <div class="hero-actions">
+          <a href="#dashboard">Explore dashboard</a>
+          <a class="secondary" href="https://github.com/nedanaeim/customer-retention-revenue-intelligence">View GitHub project</a>
+        </div>
+      </section>
+      <aside class="summary-panel" aria-label="Dashboard summary">
+        <h2>Executive readout</h2>
+        <ul>
+          <li>Repeat purchase rate is only 3.00%.</li>
+          <li>59.05% of customers are inactive or churn risk.</li>
+          <li>Sao Paulo is the largest revenue market.</li>
+        </ul>
+      </aside>
+    </div>
+  </header>
+
+  <main class="wrap" id="dashboard">
+    <nav class="toolbar" aria-label="Dashboard controls">
+      <div class="metric-tabs" aria-label="Trend metric">
+        <button class="metric-tab active" data-metric="revenue">Revenue</button>
+        <button class="metric-tab" data-metric="orders">Orders</button>
+        <button class="metric-tab" data-metric="customers">Customers</button>
+        <button class="metric-tab" data-metric="avg_order_value">AOV</button>
+      </div>
+      <label>
+        Top rows
+        <select id="topN">
+          <option value="5">Top 5</option>
+          <option value="10" selected>Top 10</option>
+          <option value="15">Top 15</option>
+        </select>
+      </label>
+      <label>
+        Bar metric
+        <select id="barMetric">
+          <option value="revenue" selected>Revenue</option>
+          <option value="orders">Orders</option>
+          <option value="customers">Customers</option>
+        </select>
+      </label>
+    </nav>
+
+    <section class="kpi-grid" aria-label="Executive KPIs">
+      <article class="kpi"><span>Total revenue</span><strong id="kpiRevenue"></strong><small>Delivered order payment value</small></article>
+      <article class="kpi"><span>Delivered orders</span><strong id="kpiOrders"></strong><small>Completed marketplace orders</small></article>
+      <article class="kpi"><span>Unique customers</span><strong id="kpiCustomers"></strong><small>Distinct customer identifiers</small></article>
+      <article class="kpi"><span>Average order value</span><strong id="kpiAov"></strong><small>Revenue per delivered order</small></article>
+      <article class="kpi"><span>Repeat purchase rate</span><strong id="kpiRepeat"></strong><small>Customers with more than one order</small></article>
+      <article class="kpi"><span>Churn-risk customers</span><strong id="kpiChurn"></strong><small>Inactive for more than 180 days</small></article>
+    </section>
+
+    <section class="grid">
+      <article class="card span-8">
+        <div class="card-head">
+          <div>
+            <h2>Monthly performance trend</h2>
+            <p>Use the metric buttons to switch between revenue, order volume, customers, and average order value.</p>
+          </div>
+        </div>
+        <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+      </article>
+
+      <article class="insight span-4">
+        <h2>Business lens</h2>
+        <p id="lensText">Retention is the biggest opportunity: most customers purchase once and do not naturally return.</p>
+        <div class="lens-tabs">
+          <button class="lens-tab active" data-lens="retention">Retention</button>
+          <button class="lens-tab" data-lens="revenue">Revenue</button>
+          <button class="lens-tab" data-lens="experience">Experience</button>
+        </div>
+        <p id="lensDetail">Start lifecycle campaigns in high-volume states, then measure repeat purchase rate and cohort retention each month.</p>
+      </article>
+
+      <article class="card span-6">
+        <div class="card-head">
+          <div>
+            <h2>Top product categories</h2>
+            <p>Compare category contribution by revenue, orders, or customers.</p>
+          </div>
+        </div>
+        <div class="chart-box short"><canvas id="categoryChart"></canvas></div>
+      </article>
+
+      <article class="card span-6">
+        <div class="card-head">
+          <div>
+            <h2>Top customer states</h2>
+            <p>Identify where retention and marketing tests can reach the largest customer base.</p>
+          </div>
+        </div>
+        <div class="chart-box short"><canvas id="stateChart"></canvas></div>
+      </article>
+
+      <article class="card span-7">
+        <div class="card-head">
+          <div>
+            <h2>Average cohort retention curve</h2>
+            <p>Month zero starts at 100%; later months show how sharply customer activity drops.</p>
+          </div>
+        </div>
+        <div class="chart-box short"><canvas id="retentionChart"></canvas></div>
+      </article>
+
+      <article class="card span-5">
+        <div class="card-head">
+          <div>
+            <h2>Customer activity mix</h2>
+            <p>Inactive customers dominate the base, which points to win-back and post-purchase engagement.</p>
+          </div>
+        </div>
+        <div class="chart-box short"><canvas id="segmentChart"></canvas></div>
+      </article>
+
+      <article class="card span-12">
+        <div class="card-head">
+          <div>
+            <h2>Recommended next actions</h2>
+            <p>Actions are prioritised for measurable revenue and retention impact.</p>
+          </div>
+        </div>
+        <div class="recommendations">
+          <div class="recommendation">
+            <strong>1. Launch post-purchase journeys</strong>
+            <p>Target Sao Paulo, Rio de Janeiro, and Minas Gerais first because customer density is highest there.</p>
+          </div>
+          <div class="recommendation">
+            <strong>2. Cross-sell top categories</strong>
+            <p>Use health and beauty, watches and gifts, bed bath table, and sports leisure as first campaign groups.</p>
+          </div>
+          <div class="recommendation">
+            <strong>3. Track retention monthly</strong>
+            <p>Make repeat purchase rate, cohort retention, inactive customer share, and AOV the executive KPI set.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="card span-12">
+        <div class="card-head">
+          <div>
+            <h2>Top state detail</h2>
+            <p>The top ten states by revenue, including order volume, customers, and average review score.</p>
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>State</th>
+              <th>Orders</th>
+              <th>Customers</th>
+              <th>Avg review</th>
+              <th>Revenue</th>
+            </tr>
+          </thead>
+          <tbody id="stateRows"></tbody>
+        </table>
+      </article>
+    </section>
+
+    <footer>
+      Built from reproducible SQL and Python outputs in this portfolio repository. Data source: Brazilian Olist ecommerce dataset.
+    </footer>
+  </main>
+
+  <script id="dashboard-data" type="application/json">__DASHBOARD_DATA__</script>
+  <script>
+    const data = JSON.parse(document.getElementById("dashboard-data").textContent);
+    const purple = "#6f35a5";
+    const violet = "#9b59d0";
+    const deep = "#2d143f";
+    const accent = "#00a88f";
+    const gold = "#c9891d";
+    const grid = "rgba(111, 53, 165, 0.12)";
+    const text = "#35213f";
+
+    const money = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+    const money2 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+    const number = new Intl.NumberFormat("en-US");
+
+    function kpiValue(name) {
+      return Number(data.kpis.find((item) => item.metric === name)?.value ?? 0);
+    }
+
+    function formatMetric(value, metric) {
+      if (metric === "revenue") return "$" + money.format(value);
+      if (metric === "avg_order_value") return "$" + money2.format(value);
+      if (metric.includes("rate") || metric.includes("pct")) return money2.format(value) + "%";
+      return number.format(value);
+    }
+
+    function setKpis() {
+      document.getElementById("kpiRevenue").textContent = "$" + money2.format(kpiValue("Total revenue") / 1000000) + "M";
+      document.getElementById("kpiOrders").textContent = number.format(kpiValue("Delivered orders"));
+      document.getElementById("kpiCustomers").textContent = number.format(kpiValue("Unique customers"));
+      document.getElementById("kpiAov").textContent = "$" + money2.format(kpiValue("Average order value"));
+      document.getElementById("kpiRepeat").textContent = money2.format(kpiValue("Repeat purchase rate pct")) + "%";
+      document.getElementById("kpiChurn").textContent = money2.format(kpiValue("Inactive or churn-risk customers pct")) + "%";
+    }
+
+    Chart.defaults.font.family = "Inter, system-ui, -apple-system, Segoe UI, Arial, sans-serif";
+    Chart.defaults.color = text;
+    Chart.defaults.plugins.legend.labels.boxWidth = 12;
+
+    let selectedMetric = "revenue";
+    let monthlyChart;
+    let categoryChart;
+    let stateChart;
+    let retentionChart;
+    let segmentChart;
+
+    const metricLabels = {
+      revenue: "Revenue",
+      orders: "Orders",
+      customers: "Customers",
+      avg_order_value: "Average order value"
+    };
+
+    function makeMonthlyChart() {
+      monthlyChart = new Chart(document.getElementById("monthlyChart"), {
+        type: "line",
+        data: {
+          labels: data.monthly.map((row) => row.order_month),
+          datasets: [{
+            label: metricLabels[selectedMetric],
+            data: data.monthly.map((row) => Number(row[selectedMetric])),
+            borderColor: purple,
+            backgroundColor: "rgba(155, 89, 208, 0.16)",
+            fill: true,
+            tension: 0.35,
+            pointRadius: 3,
+            pointHoverRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (ctx) => metricLabels[selectedMetric] + ": " + formatMetric(ctx.parsed.y, selectedMetric)
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              grid: { color: grid },
+              ticks: {
+                callback: (value) => selectedMetric === "revenue" || selectedMetric === "avg_order_value" ? "$" + money.format(value) : number.format(value)
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateMonthly(metric) {
+      selectedMetric = metric;
+      monthlyChart.data.datasets[0].label = metricLabels[metric];
+      monthlyChart.data.datasets[0].data = data.monthly.map((row) => Number(row[metric]));
+      monthlyChart.update();
+    }
+
+    function metricKeyForBars() {
+      const requested = document.getElementById("barMetric").value;
+      return requested === "revenue" ? "merchandise_revenue" : requested;
+    }
+
+    function stateMetricKey() {
+      return document.getElementById("barMetric").value;
+    }
+
+    function barLabel() {
+      const value = document.getElementById("barMetric").value;
+      return value === "revenue" ? "Revenue" : value.charAt(0).toUpperCase() + value.slice(1);
+    }
+
+    function sortedRows(rows, key, topN) {
+      return [...rows].sort((a, b) => Number(b[key]) - Number(a[key])).slice(0, topN).reverse();
+    }
+
+    function makeHorizontalBar(canvasId, rows, labelKey, valueKey, label, color) {
+      return new Chart(document.getElementById(canvasId), {
+        type: "bar",
+        data: {
+          labels: rows.map((row) => row[labelKey]),
+          datasets: [{
+            label,
+            data: rows.map((row) => Number(row[valueKey])),
+            backgroundColor: color,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => label + ": " + (label === "Revenue" ? "$" + money.format(ctx.parsed.x) : number.format(ctx.parsed.x))
+              }
+            }
+          },
+          scales: {
+            x: { grid: { color: grid } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function refreshBars() {
+      const topN = Number(document.getElementById("topN").value);
+      const categoryKey = metricKeyForBars();
+      const stateKey = stateMetricKey();
+      const categories = sortedRows(data.categories, categoryKey, topN);
+      const states = sortedRows(data.states, stateKey, topN);
+
+      categoryChart.data.labels = categories.map((row) => row.product_category.replaceAll("_", " "));
+      categoryChart.data.datasets[0].label = barLabel();
+      categoryChart.data.datasets[0].data = categories.map((row) => Number(row[categoryKey]));
+      categoryChart.update();
+
+      stateChart.data.labels = states.map((row) => row.customer_state);
+      stateChart.data.datasets[0].label = barLabel();
+      stateChart.data.datasets[0].data = states.map((row) => Number(row[stateKey]));
+      stateChart.update();
+    }
+
+    function makeSupportingCharts() {
+      const topN = Number(document.getElementById("topN").value);
+      categoryChart = makeHorizontalBar("categoryChart", sortedRows(data.categories, "merchandise_revenue", topN), "product_category", "merchandise_revenue", "Revenue", violet);
+      categoryChart.data.labels = categoryChart.data.labels.map((label) => label.replaceAll("_", " "));
+
+      stateChart = makeHorizontalBar("stateChart", sortedRows(data.states, "revenue", topN), "customer_state", "revenue", "Revenue", purple);
+
+      retentionChart = new Chart(document.getElementById("retentionChart"), {
+        type: "line",
+        data: {
+          labels: data.retention.map((row) => "M" + row.months_since_first_purchase),
+          datasets: [{
+            label: "Average retention rate",
+            data: data.retention.map((row) => Number(row.avg_retention_rate_pct)),
+            borderColor: accent,
+            backgroundColor: "rgba(0, 168, 143, 0.14)",
+            fill: true,
+            tension: 0.32,
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            tooltip: {
+              callbacks: { label: (ctx) => "Retention: " + money2.format(ctx.parsed.y) + "%" }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              min: 0,
+              max: 100,
+              grid: { color: grid },
+              ticks: { callback: (value) => value + "%" }
+            }
+          }
+        }
+      });
+
+      segmentChart = new Chart(document.getElementById("segmentChart"), {
+        type: "doughnut",
+        data: {
+          labels: data.activitySegments.map((row) => row.activity_status),
+          datasets: [{
+            data: data.activitySegments.map((row) => Number(row.customers)),
+            backgroundColor: [purple, violet, accent, gold],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "62%",
+          plugins: {
+            tooltip: {
+              callbacks: { label: (ctx) => ctx.label + ": " + number.format(ctx.parsed) + " customers" }
+            }
+          }
+        }
+      });
+    }
+
+    function setStateTable() {
+      const rows = data.states.slice(0, 10).map((row) => `
+        <tr>
+          <td><strong>${row.customer_state}</strong></td>
+          <td>${number.format(row.orders)}</td>
+          <td>${number.format(row.customers)}</td>
+          <td>${money2.format(row.avg_review_score)}</td>
+          <td>$${money.format(row.revenue)}</td>
+        </tr>
+      `).join("");
+      document.getElementById("stateRows").innerHTML = rows;
+    }
+
+    const lensCopy = {
+      retention: {
+        text: "Retention is the biggest opportunity: most customers purchase once and do not naturally return.",
+        detail: "Start lifecycle campaigns in high-volume states, then measure repeat purchase rate and cohort retention each month."
+      },
+      revenue: {
+        text: "Revenue is concentrated in a small set of categories and states, so campaign testing should begin where density is highest.",
+        detail: "Prioritise Sao Paulo, Rio de Janeiro, Minas Gerais, and top categories before expanding nationally."
+      },
+      experience: {
+        text: "Delivery and review experience still matter because poor experiences can weaken the case for repeat purchasing.",
+        detail: "Track review score and on-time delivery beside revenue metrics so retention campaigns do not mask service issues."
+      }
+    };
+
+    function setLens(name) {
+      document.getElementById("lensText").textContent = lensCopy[name].text;
+      document.getElementById("lensDetail").textContent = lensCopy[name].detail;
+    }
+
+    document.querySelectorAll(".metric-tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".metric-tab").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        updateMonthly(button.dataset.metric);
+      });
+    });
+
+    document.querySelectorAll(".lens-tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".lens-tab").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        setLens(button.dataset.lens);
+      });
+    });
+
+    document.getElementById("topN").addEventListener("change", refreshBars);
+    document.getElementById("barMetric").addEventListener("change", refreshBars);
+
+    setKpis();
+    makeMonthlyChart();
+    makeSupportingCharts();
+    setStateTable();
+  </script>
+</body>
+</html>
+"""
 
 
 def build_outputs(conn: sqlite3.Connection) -> None:
@@ -359,6 +1355,7 @@ def build_outputs(conn: sqlite3.Connection) -> None:
     ).fetchall()
     write_svg_bar_chart(top_categories, "Top Product Categories by Merchandise Revenue", FIGURES_DIR / "top_categories.svg")
     write_svg_bar_chart(top_states, "Top Customer States by Revenue", FIGURES_DIR / "top_states.svg")
+    write_interactive_dashboard(conn)
 
 
 def main() -> None:
