@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer Retention & Revenue Intelligence Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --ink: #191020;
+      --muted: #6b5c73;
+      --deep: #2d143f;
+      --purple: #6f35a5;
+      --violet: #9b59d0;
+      --lavender: #f5effb;
+      --line: #e7dff0;
+      --card: #ffffff;
+      --accent: #00a88f;
+      --gold: #c9891d;
+      --shadow: 0 18px 42px rgba(45, 20, 63, 0.14);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #fbf8ff 0%, #ffffff 34%, #f8f4fc 100%);
+    }
+
+    a { color: var(--purple); }
+
+    header {
+      background:
+        linear-gradient(135deg, #2d143f 0%, #5a267e 58%, #8a45bd 100%);
+      color: #fff;
+      padding: 44px 20px 36px;
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr);
+      gap: 28px;
+      align-items: end;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 850px;
+      font-size: clamp(34px, 6vw, 68px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 720px;
+      margin: 18px 0 0;
+      color: rgba(255, 255, 255, 0.86);
+      font-size: 18px;
+      line-height: 1.55;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .hero-actions a,
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: #fff;
+      color: var(--deep);
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .hero-actions a.secondary {
+      background: transparent;
+      color: #fff;
+    }
+
+    .summary-panel {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.12);
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    .summary-panel h2 {
+      margin: 0 0 12px;
+      font-size: 17px;
+      color: #fff;
+    }
+
+    .summary-panel ul {
+      margin: 0;
+      padding-left: 18px;
+      color: rgba(255, 255, 255, 0.86);
+      line-height: 1.55;
+    }
+
+    main {
+      padding: 26px 0 48px;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      margin: -1px auto 24px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 12px 26px rgba(45, 20, 63, 0.08);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      align-items: center;
+      backdrop-filter: blur(8px);
+    }
+
+    .metric-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button,
+    select {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--deep);
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      padding: 8px 12px;
+      font-weight: 800;
+    }
+
+    button.active {
+      border-color: var(--purple);
+      background: var(--purple);
+      color: #fff;
+    }
+
+    select {
+      padding: 8px 34px 8px 10px;
+      font-weight: 700;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .kpi,
+    .card,
+    .insight {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .kpi {
+      padding: 16px;
+      min-height: 122px;
+    }
+
+    .kpi span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .kpi strong {
+      display: block;
+      margin-top: 10px;
+      color: var(--deep);
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .kpi small {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+    }
+
+    .card {
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .span-8 { grid-column: span 8; }
+    .span-7 { grid-column: span 7; }
+    .span-6 { grid-column: span 6; }
+    .span-5 { grid-column: span 5; }
+    .span-4 { grid-column: span 4; }
+    .span-12 { grid-column: span 12; }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: start;
+      margin-bottom: 14px;
+    }
+
+    h2 {
+      margin: 0;
+      color: var(--deep);
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    .card-head p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .chart-box {
+      position: relative;
+      height: 360px;
+    }
+
+    .chart-box.short {
+      height: 305px;
+    }
+
+    .insight {
+      padding: 18px;
+      background: #2d143f;
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .insight h2 { color: #fff; }
+
+    .insight p {
+      color: rgba(255, 255, 255, 0.84);
+      line-height: 1.55;
+    }
+
+    .lens-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .lens-tabs button {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.24);
+    }
+
+    .lens-tabs button.active {
+      background: #fff;
+      color: var(--deep);
+    }
+
+    .recommendations {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .recommendation {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .recommendation strong {
+      display: block;
+      color: var(--deep);
+      margin-bottom: 6px;
+    }
+
+    .recommendation p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .data-table th,
+    .data-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+    }
+
+    .data-table th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .data-table td:last-child,
+    .data-table th:last-child {
+      text-align: right;
+    }
+
+    footer {
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .span-8,
+      .span-7,
+      .span-6,
+      .span-5,
+      .span-4 {
+        grid-column: span 12;
+      }
+
+      .recommendations {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      header {
+        padding-top: 30px;
+      }
+
+      .wrap {
+        width: min(100% - 22px, 1180px);
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-box,
+      .chart-box.short {
+        height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap hero">
+      <section>
+        <div class="eyebrow">Interactive portfolio dashboard</div>
+        <h1>Customer Retention & Revenue Intelligence</h1>
+        <p>Explore revenue, retention, customer activity, product categories, and regional performance from the Brazilian Olist ecommerce dataset.</p>
+        <div class="hero-actions">
+          <a href="#dashboard">Explore dashboard</a>
+          <a class="secondary" href="https://github.com/nedanaeim/customer-retention-revenue-intelligence">View GitHub project</a>
+        </div>
+      </section>
+      <aside class="summary-panel" aria-label="Dashboard summary">
+        <h2>Executive readout</h2>
+        <ul>
+          <li>Repeat purchase rate is only 3.00%.</li>
+          <li>59.05% of customers are inactive or churn risk.</li>
+          <li>Sao Paulo is the largest revenue market.</li>
+        </ul>
+      </aside>
+    </div>
+  </header>
+
+  <main class="wrap" id="dashboard">
+    <nav class="toolbar" aria-label="Dashboard controls">
+      <div class="metric-tabs" aria-label="Trend metric">
+        <button class="metric-tab active" data-metric="revenue">Revenue</button>
+        <button class="metric-tab" data-metric="orders">Orders</button>
+        <button class="metric-tab" data-metric="customers">Customers</button>
+        <button class="metric-tab" data-metric="avg_order_value">AOV</button>
+      </div>
+      <label>
+        Top rows
+        <select id="topN">
+          <option value="5">Top 5</option>
+          <option value="10" selected>Top 10</option>
+          <option value="15">Top 15</option>
+        </select>
+      </label>
+      <label>
+        Bar metric
+        <select id="barMetric">
+          <option value="revenue" selected>Revenue</option>
+          <option value="orders">Orders</option>
+          <option value="customers">Customers</option>
+        </select>
+      </label>
+    </nav>
+
+    <section class="kpi-grid" aria-label="Executive KPIs">
+      <article class="kpi"><span>Total revenue</span><strong id="kpiRevenue"></strong><small>Delivered order payment value</small></article>
+      <article class="kpi"><span>Delivered orders</span><strong id="kpiOrders"></strong><small>Completed marketplace orders</small></article>
+      <article class="kpi"><span>Unique customers</span><strong id="kpiCustomers"></strong><small>Distinct customer identifiers</small></article>
+      <article class="kpi"><span>Average order value</span><strong id="kpiAov"></strong><small>Revenue per delivered order</small></article>
+      <article class="kpi"><span>Repeat purchase rate</span><strong id="kpiRepeat"></strong><small>Customers with more than one order</small></article>
+      <article class="kpi"><span>Churn-risk customers</span><strong id="kpiChurn"></strong><small>Inactive for more than 180 days</small></article>
+    </section>
+
+    <section class="grid">
+      <article class="card span-8">
+        <div class="card-head">
+          <div>
+            <h2>Monthly performance trend</h2>
+            <p>Use the metric buttons to switch between revenue, order volume, customers, and average order value.</p>
+          </div>
+        </div>
+        <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+      </article>
+
+      <article class="insight span-4">
+        <h2>Business lens</h2>
+        <p id="lensText">Retention is the biggest opportunity: most customers purchase once and do not naturally return.</p>
+        <div class="lens-tabs">
+          <button class="lens-tab active" data-lens="retention">Retention</button>
+          <button class="lens-tab" data-lens="revenue">Revenue</button>
+          <button class="lens-tab" data-lens="experience">Experience</button>
+        </div>
+        <p id="lensDetail">Start lifecycle campaigns in high-volume states, then measure repeat purchase rate and cohort retention each month.</p>
+      </article>
+
+      <article class="card span-6">
+        <div class="card-head">
+          <div>
+            <h2>Top product categories</h2>
+            <p>Compare category contribution by revenue, orders, or customers.</p>
+          </div>
+        </div>
+        <div class="chart-box short"><canvas id="categoryChart"></canvas></div>
+      </article>
+
+      <article class="card span-6">
+        <div class="card-head">
+          <div>
+            <h2>Top customer states</h2>
+            <p>Identify where retention and marketing tests can reach the largest customer base.</p>
+          </div>
+        </div>
+        <div class="chart-box short"><canvas id="stateChart"></canvas></div>
+      </article>
+
+      <article class="card span-7">
+        <div class="card-head">
+          <div>
+            <h2>Average cohort retention curve</h2>
+            <p>Month zero starts at 100%; later months show how sharply customer activity drops.</p>
+          </div>
+        </div>
+        <div class="chart-box short"><canvas id="retentionChart"></canvas></div>
+      </article>
+
+      <article class="card span-5">
+        <div class="card-head">
+          <div>
+            <h2>Customer activity mix</h2>
+            <p>Inactive customers dominate the base, which points to win-back and post-purchase engagement.</p>
+          </div>
+        </div>
+        <div class="chart-box short"><canvas id="segmentChart"></canvas></div>
+      </article>
+
+      <article class="card span-12">
+        <div class="card-head">
+          <div>
+            <h2>Recommended next actions</h2>
+            <p>Actions are prioritised for measurable revenue and retention impact.</p>
+          </div>
+        </div>
+        <div class="recommendations">
+          <div class="recommendation">
+            <strong>1. Launch post-purchase journeys</strong>
+            <p>Target Sao Paulo, Rio de Janeiro, and Minas Gerais first because customer density is highest there.</p>
+          </div>
+          <div class="recommendation">
+            <strong>2. Cross-sell top categories</strong>
+            <p>Use health and beauty, watches and gifts, bed bath table, and sports leisure as first campaign groups.</p>
+          </div>
+          <div class="recommendation">
+            <strong>3. Track retention monthly</strong>
+            <p>Make repeat purchase rate, cohort retention, inactive customer share, and AOV the executive KPI set.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="card span-12">
+        <div class="card-head">
+          <div>
+            <h2>Top state detail</h2>
+            <p>The top ten states by revenue, including order volume, customers, and average review score.</p>
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>State</th>
+              <th>Orders</th>
+              <th>Customers</th>
+              <th>Avg review</th>
+              <th>Revenue</th>
+            </tr>
+          </thead>
+          <tbody id="stateRows"></tbody>
+        </table>
+      </article>
+    </section>
+
+    <footer>
+      Built from reproducible SQL and Python outputs in this portfolio repository. Data source: Brazilian Olist ecommerce dataset.
+    </footer>
+  </main>
+
+  <script id="dashboard-data" type="application/json">{"kpis": [{"metric": "Total revenue", "value": 15422461.77}, {"metric": "Delivered orders", "value": 96478}, {"metric": "Unique customers", "value": 93358}, {"metric": "Average order value", "value": 159.85}, {"metric": "Repeat purchase rate pct", "value": 3.0}, {"metric": "Inactive or churn-risk customers pct", "value": 59.05}], "monthly": [{"order_month": "2016-09", "orders": 1, "customers": 1, "revenue": 0.0, "avg_order_value": 0.0, "avg_review_score": 1.0, "on_time_delivery_rate_pct": 0.0}, {"order_month": "2016-10", "orders": 265, "customers": 262, "revenue": 46566.71, "avg_order_value": 175.72, "avg_review_score": 3.97, "on_time_delivery_rate_pct": 98.87}, {"order_month": "2016-12", "orders": 1, "customers": 1, "revenue": 19.62, "avg_order_value": 19.62, "avg_review_score": 5.0, "on_time_delivery_rate_pct": 100.0}, {"order_month": "2017-01", "orders": 750, "customers": 718, "revenue": 127545.67, "avg_order_value": 170.06, "avg_review_score": 4.15, "on_time_delivery_rate_pct": 96.93}, {"order_month": "2017-02", "orders": 1653, "customers": 1630, "revenue": 271298.65, "avg_order_value": 164.13, "avg_review_score": 4.18, "on_time_delivery_rate_pct": 96.79}, {"order_month": "2017-03", "orders": 2546, "customers": 2508, "revenue": 414369.39, "avg_order_value": 162.75, "avg_review_score": 4.16, "on_time_delivery_rate_pct": 94.42}, {"order_month": "2017-04", "orders": 2303, "customers": 2274, "revenue": 390952.18, "avg_order_value": 169.76, "avg_review_score": 4.11, "on_time_delivery_rate_pct": 92.14}, {"order_month": "2017-05", "orders": 3546, "customers": 3479, "revenue": 567066.73, "avg_order_value": 159.92, "avg_review_score": 4.21, "on_time_delivery_rate_pct": 96.36}, {"order_month": "2017-06", "orders": 3135, "customers": 3076, "revenue": 490225.6, "avg_order_value": 156.37, "avg_review_score": 4.19, "on_time_delivery_rate_pct": 96.14}, {"order_month": "2017-07", "orders": 3872, "customers": 3802, "revenue": 566403.93, "avg_order_value": 146.28, "avg_review_score": 4.23, "on_time_delivery_rate_pct": 96.57}, {"order_month": "2017-08", "orders": 4193, "customers": 4114, "revenue": 646000.61, "avg_order_value": 154.07, "avg_review_score": 4.28, "on_time_delivery_rate_pct": 96.68}, {"order_month": "2017-09", "orders": 4150, "customers": 4083, "revenue": 701169.99, "avg_order_value": 168.96, "avg_review_score": 4.23, "on_time_delivery_rate_pct": 94.8}, {"order_month": "2017-10", "orders": 4478, "customers": 4417, "revenue": 751140.27, "avg_order_value": 167.74, "avg_review_score": 4.18, "on_time_delivery_rate_pct": 94.71}, {"order_month": "2017-11", "orders": 7289, "customers": 7183, "revenue": 1153528.05, "avg_order_value": 158.26, "avg_review_score": 3.96, "on_time_delivery_rate_pct": 85.68}, {"order_month": "2017-12", "orders": 5513, "customers": 5450, "revenue": 843199.17, "avg_order_value": 152.95, "avg_review_score": 4.05, "on_time_delivery_rate_pct": 91.62}, {"order_month": "2018-01", "orders": 7069, "customers": 6974, "revenue": 1078606.86, "avg_order_value": 152.58, "avg_review_score": 4.08, "on_time_delivery_rate_pct": 93.44}, {"order_month": "2018-02", "orders": 6555, "customers": 6400, "revenue": 966510.88, "avg_order_value": 147.45, "avg_review_score": 3.85, "on_time_delivery_rate_pct": 84.01}, {"order_month": "2018-03", "orders": 7003, "customers": 6914, "revenue": 1120678.0, "avg_order_value": 160.03, "avg_review_score": 3.78, "on_time_delivery_rate_pct": 78.64}, {"order_month": "2018-04", "orders": 6798, "customers": 6744, "revenue": 1132933.95, "avg_order_value": 166.66, "avg_review_score": 4.18, "on_time_delivery_rate_pct": 94.69}, {"order_month": "2018-05", "orders": 6749, "customers": 6693, "revenue": 1128836.69, "avg_order_value": 167.26, "avg_review_score": 4.22, "on_time_delivery_rate_pct": 91.76}, {"order_month": "2018-06", "orders": 6099, "customers": 6061, "revenue": 1012090.68, "avg_order_value": 165.94, "avg_review_score": 4.29, "on_time_delivery_rate_pct": 98.59}, {"order_month": "2018-07", "orders": 6159, "customers": 6100, "revenue": 1027903.86, "avg_order_value": 166.89, "avg_review_score": 4.29, "on_time_delivery_rate_pct": 95.47}, {"order_month": "2018-08", "orders": 6351, "customers": 6310, "revenue": 985414.28, "avg_order_value": 155.16, "avg_review_score": 4.3, "on_time_delivery_rate_pct": 89.61}], "categories": [{"product_category": "health_beauty", "orders": 8647, "items_sold": 9465, "merchandise_revenue": 1233131.72, "avg_item_price": 130.28, "customers": 8498}, {"product_category": "watches_gifts", "orders": 5495, "items_sold": 5859, "merchandise_revenue": 1166176.98, "avg_item_price": 199.04, "customers": 5421}, {"product_category": "bed_bath_table", "orders": 9272, "items_sold": 10953, "merchandise_revenue": 1023434.76, "avg_item_price": 93.44, "customers": 9008}, {"product_category": "sports_leisure", "orders": 7530, "items_sold": 8431, "merchandise_revenue": 954852.55, "avg_item_price": 113.25, "customers": 7341}, {"product_category": "computers_accessories", "orders": 6530, "items_sold": 7644, "merchandise_revenue": 888724.61, "avg_item_price": 116.26, "customers": 6405}, {"product_category": "furniture_decor", "orders": 6307, "items_sold": 8160, "merchandise_revenue": 711927.69, "avg_item_price": 87.25, "customers": 6178}, {"product_category": "housewares", "orders": 5743, "items_sold": 6795, "merchandise_revenue": 615628.69, "avg_item_price": 90.6, "customers": 5681}, {"product_category": "cool_stuff", "orders": 3559, "items_sold": 3718, "merchandise_revenue": 610204.1, "avg_item_price": 164.12, "customers": 3543}, {"product_category": "auto", "orders": 3810, "items_sold": 4140, "merchandise_revenue": 578966.65, "avg_item_price": 139.85, "customers": 3769}, {"product_category": "toys", "orders": 3804, "items_sold": 4030, "merchandise_revenue": 471286.48, "avg_item_price": 116.94, "customers": 3763}, {"product_category": "garden_tools", "orders": 3448, "items_sold": 4268, "merchandise_revenue": 470495.28, "avg_item_price": 110.24, "customers": 3420}, {"product_category": "baby", "orders": 2809, "items_sold": 2982, "merchandise_revenue": 400421.84, "avg_item_price": 134.28, "customers": 2783}, {"product_category": "perfumery", "orders": 3086, "items_sold": 3340, "merchandise_revenue": 390144.65, "avg_item_price": 116.81, "customers": 3050}, {"product_category": "telephony", "orders": 4093, "items_sold": 4430, "merchandise_revenue": 309860.23, "avg_item_price": 69.95, "customers": 4047}, {"product_category": "office_furniture", "orders": 1254, "items_sold": 1668, "merchandise_revenue": 268154.31, "avg_item_price": 160.76, "customers": 1245}, {"product_category": "stationery", "orders": 2264, "items_sold": 2466, "merchandise_revenue": 223788.69, "avg_item_price": 90.75, "customers": 2250}, {"product_category": "computers", "orders": 177, "items_sold": 199, "merchandise_revenue": 218684.14, "avg_item_price": 1098.92, "customers": 176}, {"product_category": "pet_shop", "orders": 1688, "items_sold": 1924, "merchandise_revenue": 211695.64, "avg_item_price": 110.03, "customers": 1667}, {"product_category": "musical_instruments", "orders": 611, "items_sold": 651, "merchandise_revenue": 184315.74, "avg_item_price": 283.13, "customers": 607}, {"product_category": "small_appliances", "orders": 609, "items_sold": 658, "merchandise_revenue": 182754.12, "avg_item_price": 277.74, "customers": 606}], "states": [{"customer_state": "SP", "orders": 40501, "customers": 39156, "revenue": 5770266.19, "avg_order_value": 142.47, "avg_review_score": 4.22}, {"customer_state": "RJ", "orders": 12350, "customers": 11917, "revenue": 2055690.45, "avg_order_value": 166.45, "avg_review_score": 3.92}, {"customer_state": "MG", "orders": 11354, "customers": 11001, "revenue": 1819277.61, "avg_order_value": 160.23, "avg_review_score": 4.17}, {"customer_state": "RS", "orders": 5345, "customers": 5168, "revenue": 861802.4, "avg_order_value": 161.24, "avg_review_score": 4.17}, {"customer_state": "PR", "orders": 4923, "customers": 4769, "revenue": 781919.55, "avg_order_value": 158.83, "avg_review_score": 4.22}, {"customer_state": "SC", "orders": 3546, "customers": 3449, "revenue": 595208.4, "avg_order_value": 167.85, "avg_review_score": 4.1}, {"customer_state": "BA", "orders": 3256, "customers": 3158, "revenue": 591270.6, "avg_order_value": 181.59, "avg_review_score": 3.9}, {"customer_state": "DF", "orders": 2080, "customers": 2019, "revenue": 346146.17, "avg_order_value": 166.42, "avg_review_score": 4.11}, {"customer_state": "GO", "orders": 1957, "customers": 1895, "revenue": 334294.22, "avg_order_value": 170.82, "avg_review_score": 4.08}, {"customer_state": "ES", "orders": 1995, "customers": 1928, "revenue": 317682.65, "avg_order_value": 159.24, "avg_review_score": 4.03}, {"customer_state": "PE", "orders": 1593, "customers": 1551, "revenue": 309074.59, "avg_order_value": 194.02, "avg_review_score": 4.05}, {"customer_state": "CE", "orders": 1279, "customers": 1258, "revenue": 266463.97, "avg_order_value": 208.34, "avg_review_score": 3.92}, {"customer_state": "PA", "orders": 946, "customers": 922, "revenue": 212027.55, "avg_order_value": 224.13, "avg_review_score": 3.86}, {"customer_state": "MT", "orders": 886, "customers": 856, "revenue": 181441.72, "avg_order_value": 204.79, "avg_review_score": 4.11}, {"customer_state": "MA", "orders": 717, "customers": 700, "revenue": 147807.29, "avg_order_value": 206.15, "avg_review_score": 3.81}, {"customer_state": "PB", "orders": 517, "customers": 504, "revenue": 137834.65, "avg_order_value": 266.6, "avg_review_score": 4.04}, {"customer_state": "MS", "orders": 701, "customers": 681, "revenue": 134421.54, "avg_order_value": 191.76, "avg_review_score": 4.15}, {"customer_state": "PI", "orders": 476, "customers": 464, "revenue": 105272.17, "avg_order_value": 221.16, "avg_review_score": 3.95}, {"customer_state": "RN", "orders": 474, "customers": 464, "revenue": 100728.3, "avg_order_value": 212.51, "avg_review_score": 4.12}, {"customer_state": "AL", "orders": 397, "customers": 387, "revenue": 94195.79, "avg_order_value": 237.27, "avg_review_score": 3.82}, {"customer_state": "SE", "orders": 335, "customers": 329, "revenue": 70289.13, "avg_order_value": 209.82, "avg_review_score": 3.9}, {"customer_state": "TO", "orders": 274, "customers": 267, "revenue": 60007.37, "avg_order_value": 219.0, "avg_review_score": 4.14}, {"customer_state": "RO", "orders": 243, "customers": 231, "revenue": 56975.7, "avg_order_value": 234.47, "avg_review_score": 4.15}, {"customer_state": "AM", "orders": 145, "customers": 140, "revenue": 27596.18, "avg_order_value": 190.32, "avg_review_score": 4.21}, {"customer_state": "AC", "orders": 80, "customers": 76, "revenue": 19586.25, "avg_order_value": 244.83, "avg_review_score": 4.09}, {"customer_state": "AP", "orders": 67, "customers": 66, "revenue": 16141.81, "avg_order_value": 240.92, "avg_review_score": 4.18}, {"customer_state": "RR", "orders": 41, "customers": 40, "revenue": 9039.52, "avg_order_value": 220.48, "avg_review_score": 3.9}], "activitySegments": [{"activity_status": "Inactive / churn risk", "customers": 55132, "revenue": 8953267.98, "avg_order_value": 157.99}, {"activity_status": "Cooling down", "customers": 19706, "revenue": 3344984.78, "avg_order_value": 164.39}, {"activity_status": "Recently active", "customers": 18520, "revenue": 3124209.01, "avg_order_value": 162.89}], "valueSegments": [{"value_segment": "Low-value one-time", "customers": 78126, "revenue": 8061563.54, "avg_order_value": 103.19}, {"value_segment": "High-value one-time", "customers": 13298, "revenue": 6797356.74, "avg_order_value": 499.47}, {"value_segment": "High-value loyal", "customers": 368, "revenue": 320377.95, "avg_order_value": 389.71}, {"value_segment": "Emerging loyal", "customers": 1566, "revenue": 243163.54, "avg_order_value": 76.48}], "retention": [{"months_since_first_purchase": 0, "avg_retention_rate_pct": 100.0, "active_customers": 93358, "cohort_customers": 93358}, {"months_since_first_purchase": 1, "avg_retention_rate_pct": 5.45, "active_customers": 421, "cohort_customers": 86951}, {"months_since_first_purchase": 2, "avg_retention_rate_pct": 0.34, "active_customers": 273, "cohort_customers": 81001}, {"months_since_first_purchase": 3, "avg_retention_rate_pct": 0.25, "active_customers": 192, "cohort_customers": 75123}, {"months_since_first_purchase": 4, "avg_retention_rate_pct": 0.29, "active_customers": 176, "cohort_customers": 68617}, {"months_since_first_purchase": 5, "avg_retention_rate_pct": 0.23, "active_customers": 140, "cohort_customers": 62035}, {"months_since_first_purchase": 6, "avg_retention_rate_pct": 0.27, "active_customers": 129, "cohort_customers": 55523}, {"months_since_first_purchase": 7, "avg_retention_rate_pct": 0.21, "active_customers": 102, "cohort_customers": 48973}, {"months_since_first_purchase": 8, "avg_retention_rate_pct": 0.21, "active_customers": 86, "cohort_customers": 42131}, {"months_since_first_purchase": 9, "avg_retention_rate_pct": 0.19, "active_customers": 60, "cohort_customers": 36338}, {"months_since_first_purchase": 10, "avg_retention_rate_pct": 0.27, "active_customers": 75, "cohort_customers": 29733}, {"months_since_first_purchase": 11, "avg_retention_rate_pct": 0.23, "active_customers": 57, "cohort_customers": 25667}, {"months_since_first_purchase": 12, "avg_retention_rate_pct": 0.21, "active_customers": 36, "cohort_customers": 21401}]}</script>
+  <script>
+    const data = JSON.parse(document.getElementById("dashboard-data").textContent);
+    const purple = "#6f35a5";
+    const violet = "#9b59d0";
+    const deep = "#2d143f";
+    const accent = "#00a88f";
+    const gold = "#c9891d";
+    const grid = "rgba(111, 53, 165, 0.12)";
+    const text = "#35213f";
+
+    const money = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+    const money2 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+    const number = new Intl.NumberFormat("en-US");
+
+    function kpiValue(name) {
+      return Number(data.kpis.find((item) => item.metric === name)?.value ?? 0);
+    }
+
+    function formatMetric(value, metric) {
+      if (metric === "revenue") return "$" + money.format(value);
+      if (metric === "avg_order_value") return "$" + money2.format(value);
+      if (metric.includes("rate") || metric.includes("pct")) return money2.format(value) + "%";
+      return number.format(value);
+    }
+
+    function setKpis() {
+      document.getElementById("kpiRevenue").textContent = "$" + money2.format(kpiValue("Total revenue") / 1000000) + "M";
+      document.getElementById("kpiOrders").textContent = number.format(kpiValue("Delivered orders"));
+      document.getElementById("kpiCustomers").textContent = number.format(kpiValue("Unique customers"));
+      document.getElementById("kpiAov").textContent = "$" + money2.format(kpiValue("Average order value"));
+      document.getElementById("kpiRepeat").textContent = money2.format(kpiValue("Repeat purchase rate pct")) + "%";
+      document.getElementById("kpiChurn").textContent = money2.format(kpiValue("Inactive or churn-risk customers pct")) + "%";
+    }
+
+    Chart.defaults.font.family = "Inter, system-ui, -apple-system, Segoe UI, Arial, sans-serif";
+    Chart.defaults.color = text;
+    Chart.defaults.plugins.legend.labels.boxWidth = 12;
+
+    let selectedMetric = "revenue";
+    let monthlyChart;
+    let categoryChart;
+    let stateChart;
+    let retentionChart;
+    let segmentChart;
+
+    const metricLabels = {
+      revenue: "Revenue",
+      orders: "Orders",
+      customers: "Customers",
+      avg_order_value: "Average order value"
+    };
+
+    function makeMonthlyChart() {
+      monthlyChart = new Chart(document.getElementById("monthlyChart"), {
+        type: "line",
+        data: {
+          labels: data.monthly.map((row) => row.order_month),
+          datasets: [{
+            label: metricLabels[selectedMetric],
+            data: data.monthly.map((row) => Number(row[selectedMetric])),
+            borderColor: purple,
+            backgroundColor: "rgba(155, 89, 208, 0.16)",
+            fill: true,
+            tension: 0.35,
+            pointRadius: 3,
+            pointHoverRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (ctx) => metricLabels[selectedMetric] + ": " + formatMetric(ctx.parsed.y, selectedMetric)
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              grid: { color: grid },
+              ticks: {
+                callback: (value) => selectedMetric === "revenue" || selectedMetric === "avg_order_value" ? "$" + money.format(value) : number.format(value)
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateMonthly(metric) {
+      selectedMetric = metric;
+      monthlyChart.data.datasets[0].label = metricLabels[metric];
+      monthlyChart.data.datasets[0].data = data.monthly.map((row) => Number(row[metric]));
+      monthlyChart.update();
+    }
+
+    function metricKeyForBars() {
+      const requested = document.getElementById("barMetric").value;
+      return requested === "revenue" ? "merchandise_revenue" : requested;
+    }
+
+    function stateMetricKey() {
+      return document.getElementById("barMetric").value;
+    }
+
+    function barLabel() {
+      const value = document.getElementById("barMetric").value;
+      return value === "revenue" ? "Revenue" : value.charAt(0).toUpperCase() + value.slice(1);
+    }
+
+    function sortedRows(rows, key, topN) {
+      return [...rows].sort((a, b) => Number(b[key]) - Number(a[key])).slice(0, topN).reverse();
+    }
+
+    function makeHorizontalBar(canvasId, rows, labelKey, valueKey, label, color) {
+      return new Chart(document.getElementById(canvasId), {
+        type: "bar",
+        data: {
+          labels: rows.map((row) => row[labelKey]),
+          datasets: [{
+            label,
+            data: rows.map((row) => Number(row[valueKey])),
+            backgroundColor: color,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => label + ": " + (label === "Revenue" ? "$" + money.format(ctx.parsed.x) : number.format(ctx.parsed.x))
+              }
+            }
+          },
+          scales: {
+            x: { grid: { color: grid } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function refreshBars() {
+      const topN = Number(document.getElementById("topN").value);
+      const categoryKey = metricKeyForBars();
+      const stateKey = stateMetricKey();
+      const categories = sortedRows(data.categories, categoryKey, topN);
+      const states = sortedRows(data.states, stateKey, topN);
+
+      categoryChart.data.labels = categories.map((row) => row.product_category.replaceAll("_", " "));
+      categoryChart.data.datasets[0].label = barLabel();
+      categoryChart.data.datasets[0].data = categories.map((row) => Number(row[categoryKey]));
+      categoryChart.update();
+
+      stateChart.data.labels = states.map((row) => row.customer_state);
+      stateChart.data.datasets[0].label = barLabel();
+      stateChart.data.datasets[0].data = states.map((row) => Number(row[stateKey]));
+      stateChart.update();
+    }
+
+    function makeSupportingCharts() {
+      const topN = Number(document.getElementById("topN").value);
+      categoryChart = makeHorizontalBar("categoryChart", sortedRows(data.categories, "merchandise_revenue", topN), "product_category", "merchandise_revenue", "Revenue", violet);
+      categoryChart.data.labels = categoryChart.data.labels.map((label) => label.replaceAll("_", " "));
+
+      stateChart = makeHorizontalBar("stateChart", sortedRows(data.states, "revenue", topN), "customer_state", "revenue", "Revenue", purple);
+
+      retentionChart = new Chart(document.getElementById("retentionChart"), {
+        type: "line",
+        data: {
+          labels: data.retention.map((row) => "M" + row.months_since_first_purchase),
+          datasets: [{
+            label: "Average retention rate",
+            data: data.retention.map((row) => Number(row.avg_retention_rate_pct)),
+            borderColor: accent,
+            backgroundColor: "rgba(0, 168, 143, 0.14)",
+            fill: true,
+            tension: 0.32,
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            tooltip: {
+              callbacks: { label: (ctx) => "Retention: " + money2.format(ctx.parsed.y) + "%" }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              min: 0,
+              max: 100,
+              grid: { color: grid },
+              ticks: { callback: (value) => value + "%" }
+            }
+          }
+        }
+      });
+
+      segmentChart = new Chart(document.getElementById("segmentChart"), {
+        type: "doughnut",
+        data: {
+          labels: data.activitySegments.map((row) => row.activity_status),
+          datasets: [{
+            data: data.activitySegments.map((row) => Number(row.customers)),
+            backgroundColor: [purple, violet, accent, gold],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "62%",
+          plugins: {
+            tooltip: {
+              callbacks: { label: (ctx) => ctx.label + ": " + number.format(ctx.parsed) + " customers" }
+            }
+          }
+        }
+      });
+    }
+
+    function setStateTable() {
+      const rows = data.states.slice(0, 10).map((row) => `
+        <tr>
+          <td><strong>${row.customer_state}</strong></td>
+          <td>${number.format(row.orders)}</td>
+          <td>${number.format(row.customers)}</td>
+          <td>${money2.format(row.avg_review_score)}</td>
+          <td>$${money.format(row.revenue)}</td>
+        </tr>
+      `).join("");
+      document.getElementById("stateRows").innerHTML = rows;
+    }
+
+    const lensCopy = {
+      retention: {
+        text: "Retention is the biggest opportunity: most customers purchase once and do not naturally return.",
+        detail: "Start lifecycle campaigns in high-volume states, then measure repeat purchase rate and cohort retention each month."
+      },
+      revenue: {
+        text: "Revenue is concentrated in a small set of categories and states, so campaign testing should begin where density is highest.",
+        detail: "Prioritise Sao Paulo, Rio de Janeiro, Minas Gerais, and top categories before expanding nationally."
+      },
+      experience: {
+        text: "Delivery and review experience still matter because poor experiences can weaken the case for repeat purchasing.",
+        detail: "Track review score and on-time delivery beside revenue metrics so retention campaigns do not mask service issues."
+      }
+    };
+
+    function setLens(name) {
+      document.getElementById("lensText").textContent = lensCopy[name].text;
+      document.getElementById("lensDetail").textContent = lensCopy[name].detail;
+    }
+
+    document.querySelectorAll(".metric-tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".metric-tab").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        updateMonthly(button.dataset.metric);
+      });
+    });
+
+    document.querySelectorAll(".lens-tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".lens-tab").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        setLens(button.dataset.lens);
+      });
+    });
+
+    document.getElementById("topN").addEventListener("change", refreshBars);
+    document.getElementById("barMetric").addEventListener("change", refreshBars);
+
+    setKpis();
+    makeMonthlyChart();
+    makeSupportingCharts();
+    setStateTable();
+  </script>
+</body>
+</html>
